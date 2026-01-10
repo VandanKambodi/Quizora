@@ -19,10 +19,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Quizora Teacher", style: TextStyle(color: qWhite)),
-        backgroundColor: qBlue,
+        title: const Text("Quizora Teacher"),
         actions: [
-          // Helpful to have a logout button to test both roles
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed:
@@ -39,18 +37,28 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: "Quiz Title"),
+              decoration: const InputDecoration(
+                labelText: "Quiz Title",
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 15),
             TextField(
               controller: _timerController,
-              decoration: const InputDecoration(labelText: "Timer (minutes)"),
+              decoration: const InputDecoration(
+                labelText: "Timer (minutes)",
+                border: OutlineInputBorder(),
+              ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: qBlue,
+                backgroundColor: qPrimary,
                 minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () async {
                 await DatabaseService().uploadQuizFromExcel(
@@ -63,10 +71,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   const SnackBar(content: Text("Quiz Uploaded Successfully!")),
                 );
               },
-              child: const Text(
-                "UPLOAD EXCEL SHEET",
-                style: TextStyle(color: qWhite),
-              ),
+              child: Text("UPLOAD EXCEL SHEET", style: qButtonStyle),
             ),
             const SizedBox(height: 30),
             const Text(
@@ -75,10 +80,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             ),
             const Divider(),
 
-            // NEW SECTION: This is what was missing!
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                // Fetch quizzes only created by THIS teacher
                 stream:
                     FirebaseFirestore.instance
                         .collection('quizzes')
@@ -107,10 +110,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       var data = quizzes[index].data() as Map<String, dynamic>;
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: ListTile(
-                          leading: const Icon(Icons.description, color: qBlue),
+                          leading: const Icon(
+                            Icons.description,
+                            color: qPrimary,
+                          ),
                           title: Text(data['title'] ?? 'No Title'),
-                          subtitle: Text("Time: ${data['timer']} mins"),
+                          subtitle: Text(
+                            "Time: ${data['timer']} mins",
+                            style: qSubTitleStyle,
+                          ),
                           trailing: const Icon(
                             Icons.arrow_forward_ios,
                             size: 16,

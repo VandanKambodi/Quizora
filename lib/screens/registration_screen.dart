@@ -21,14 +21,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     setState(() => _isLoading = true);
     try {
-      //Create Auth Account
       UserCredential cred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passController.text.trim(),
           );
 
-      //Save Role & Name to Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(cred.user!.uid)
@@ -40,7 +38,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             'createdAt': DateTime.now(),
           });
 
-      //Navigate to appropriate dashboard
       if (!mounted) return;
       String nextRoute =
           _selectedRole == 'Teacher'
@@ -59,51 +56,66 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          children: [
-            const SizedBox(height: 80),
-            Text("Join Quizora", style: qTitleStyle),
-            const SizedBox(height: 40),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: "Full Name"),
-            ),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: "Email"),
-            ),
-            TextField(
-              controller: _passController,
-              decoration: const InputDecoration(labelText: "Password"),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            DropdownButton<String>(
-              value: _selectedRole,
-              isExpanded: true,
-              items:
-                  ['Student', 'Teacher']
-                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                      .toList(),
-              onChanged: (v) => setState(() => _selectedRole = v!),
-            ),
-            const SizedBox(height: 30),
-            _isLoading
-                ? const CircularProgressIndicator(color: qBlue)
-                : ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: qBlue,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  onPressed: _register,
-                  child: const Text(
-                    "REGISTER",
-                    style: TextStyle(color: qWhite),
-                  ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Join Quizora", style: qTitleStyle),
+              const SizedBox(height: 30),
+
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: "Full Name",
+                  border: OutlineInputBorder(),
                 ),
-          ],
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: _passController,
+                decoration: const InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+
+              DropdownButtonFormField(
+                value: _selectedRole,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                items:
+                    ['Student', 'Teacher']
+                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                        .toList(),
+                onChanged: (v) => setState(() => _selectedRole = v!),
+              ),
+              const SizedBox(height: 25),
+
+              _isLoading
+                  ? const CircularProgressIndicator(color: qPrimary)
+                  : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: qPrimary,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: _register,
+                    child: Text("REGISTER", style: qButtonStyle),
+                  ),
+            ],
+          ),
         ),
       ),
     );

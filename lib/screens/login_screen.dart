@@ -23,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
             password: _passController.text.trim(),
           );
 
-      // Check Firestore for Role
       DocumentSnapshot userDoc =
           await FirebaseFirestore.instance
               .collection('users')
@@ -49,40 +48,58 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          children: [
-            const SizedBox(height: 80),
-            Image.asset('assets/images/quizora-nbg.png', width: 120),
-            const SizedBox(height: 20),
-            Text("Welcome Back", style: qTitleStyle.copyWith(color: qBlack)),
-            const SizedBox(height: 40),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: "Email"),
-            ),
-            TextField(
-              controller: _passController,
-              decoration: const InputDecoration(labelText: "Password"),
-              obscureText: true,
-            ),
-            const SizedBox(height: 30),
-            _isLoading
-                ? const CircularProgressIndicator(color: qBlue)
-                : ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: qBlue,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  onPressed: _login,
-                  child: const Text("LOGIN", style: TextStyle(color: qWhite)),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/quizora-nbg.png', width: 120),
+              const SizedBox(height: 20),
+              Text(
+                "Welcome Back",
+                style: qTitleStyle.copyWith(color: qTextPrimary),
+              ),
+              const SizedBox(height: 30),
+
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                  border: OutlineInputBorder(),
                 ),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/register'),
-              child: const Text("New user? Create an account"),
-            ),
-          ],
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: _passController,
+                decoration: const InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 25),
+
+              _isLoading
+                  ? const CircularProgressIndicator(color: qPrimary)
+                  : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: qPrimary,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: _login,
+                    child: Text("LOGIN", style: qButtonStyle),
+                  ),
+
+              const SizedBox(height: 10),
+
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/register'),
+                child: const Text("New user? Create an account"),
+              ),
+            ],
+          ),
         ),
       ),
     );

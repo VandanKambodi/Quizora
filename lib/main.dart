@@ -21,7 +21,15 @@ class QuizoraApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Quizora',
-      theme: ThemeData(scaffoldBackgroundColor: qWhite, primaryColor: qBlue),
+      theme: ThemeData(
+        scaffoldBackgroundColor: qBg,
+        primaryColor: qPrimary,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: qPrimary,
+          foregroundColor: qWhite,
+          elevation: 0,
+        ),
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -38,11 +46,12 @@ class QuizoraApp extends StatelessWidget {
 class DashboardPlaceholder extends StatelessWidget {
   final String title;
   const DashboardPlaceholder({super.key, required this.title});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title), backgroundColor: qBlue),
-      body: Center(child: Text("Welcome to the $title")),
+      appBar: AppBar(title: Text(title)),
+      body: Center(child: Text("Welcome to $title", style: qSubTitleStyle)),
     );
   }
 }
