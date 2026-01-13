@@ -15,7 +15,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   void _login() async {
+    if (_emailController.text.isEmpty || _passController.text.isEmpty) {
+      _showError("Email and password are required");
+      return;
+    }
+
     setState(() => _isLoading = true);
+
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
@@ -31,18 +37,60 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (userDoc.exists && mounted) {
         String role = userDoc['role'];
+
         Navigator.pushReplacementNamed(
           context,
           role == 'Teacher' ? '/teacher_dashboard' : '/student_dashboard',
         );
       }
+    } on FirebaseAuthException catch (e) {
+      String msg = "Login failed";
+
+      if (e.code == 'user-not-found') {
+        msg = "No account found with this email";
+      } else if (e.code == 'wrong-password') {
+        msg = "Incorrect password";
+      } else if (e.code == 'invalid-email') {
+        msg = "Invalid email format";
+      } else if (e.code == 'network-request-failed') {
+        msg = "No internet connection";
+      } else if (e.code == 'too-many-requests') {
+        msg = "Too many attempts. Try again later";
+      } else {
+        msg = "Invalid email or password";
+      }
+
+      _showError(msg);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      setState(() => _isLoading = false);
+      _showError("Something went wrong. Try again");
     }
+
+    setState(() => _isLoading = false);
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -56,6 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Image.asset('assets/images/quizora-nbg.png', width: 120),
               const SizedBox(height: 20),
+
               Text(
                 "Welcome Back",
                 style: qTitleStyle.copyWith(color: qTextPrimary),

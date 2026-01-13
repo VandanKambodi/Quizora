@@ -13,11 +13,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
+  final _confirmPassController = TextEditingController();
+
   String _selectedRole = 'Student';
   bool _isLoading = false;
 
   Future<void> _register() async {
-    if (_nameController.text.isEmpty || _emailController.text.isEmpty) return;
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passController.text.isEmpty ||
+        _confirmPassController.text.isEmpty) {
+      _showError("All fields are required");
+      return;
+    }
+
+    if (_passController.text != _confirmPassController.text) {
+      _showError("Passwords do not match");
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -39,18 +52,37 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           });
 
       if (!mounted) return;
+
       String nextRoute =
           _selectedRole == 'Teacher'
               ? '/teacher_dashboard'
               : '/student_dashboard';
+
       Navigator.pushReplacementNamed(context, nextRoute);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      _showError(e.toString());
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(msg, style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -87,6 +119,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 controller: _passController,
                 decoration: const InputDecoration(
                   labelText: "Password",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: _confirmPassController,
+                decoration: const InputDecoration(
+                  labelText: "Confirm Password",
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
