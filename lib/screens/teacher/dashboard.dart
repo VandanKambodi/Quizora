@@ -37,6 +37,17 @@ class TeacherDashboard extends StatelessWidget {
             ),
       ),
 
+      bottomNavigationBar: BottomNavigationBar(
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment),
+            label: 'Quizzes',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -95,8 +106,49 @@ class TeacherDashboard extends StatelessWidget {
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed:
-                                  () => DatabaseService().deleteQuiz(quiz.id),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: const Text("Delete Quiz"),
+                                        content: const Text(
+                                          "Are you sure you want to delete this quiz?\n\nThis action cannot be undone.",
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(context),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                            ),
+                                            onPressed: () async {
+                                              await DatabaseService()
+                                                  .deleteQuiz(quiz.id);
+                                              if (context.mounted)
+                                                Navigator.pop(context);
+
+                                              // Success feedback
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "Quiz deleted successfully",
+                                                  ),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            },
+                                            child: const Text("Delete"),
+                                          ),
+                                        ],
+                                      ),
+                                );
+                              },
                             ),
                             IconButton(
                               icon: const Icon(
@@ -350,14 +402,61 @@ class TeacherDashboard extends StatelessWidget {
                                 icon: const Icon(
                                   Icons.remove_circle,
                                   color: Colors.red,
-                                  size: 20,
                                 ),
-                                onPressed: () async {
-                                  await DatabaseService().removeCollaborator(
-                                    quizId,
-                                    email,
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder:
+                                        (context) => AlertDialog(
+                                          title: const Text(
+                                            "Remove Collaborator",
+                                          ),
+                                          content: Text(
+                                            "Are you sure you want to remove\n$email as a collaborator?",
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(context),
+                                              child: const Text("Cancel"),
+                                            ),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                              ),
+                                              onPressed: () async {
+                                                await DatabaseService()
+                                                    .removeCollaborator(
+                                                      quizId,
+                                                      email,
+                                                    );
+
+                                                if (context.mounted) {
+                                                  Navigator.pop(
+                                                    context,
+                                                  ); // close dialog
+                                                  Navigator.pop(
+                                                    context,
+                                                  ); // close manage collaborators dialog
+                                                }
+
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "Collaborator removed successfully",
+                                                    ),
+                                                    backgroundColor:
+                                                        Colors.green,
+                                                  ),
+                                                );
+                                              },
+                                              child: const Text("Remove"),
+                                            ),
+                                          ],
+                                        ),
                                   );
-                                  if (context.mounted) Navigator.pop(context);
                                 },
                               ),
                             ],
@@ -431,15 +530,66 @@ class TeacherDashboard extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(
                                       Icons.remove_circle,
-                                      size: 20,
                                       color: Colors.red,
                                     ),
-                                    onPressed: () async {
-                                      await DatabaseService()
-                                          .removeStudentFromQuiz(quizId, email);
-                                      Navigator.pop(
-                                        context,
-                                      ); // Refresh by closing
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder:
+                                            (context) => AlertDialog(
+                                              title: const Text(
+                                                "Remove Student",
+                                              ),
+                                              content: Text(
+                                                "Are you sure you want to remove\n$email from this quiz?",
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ),
+                                                  child: const Text("Cancel"),
+                                                ),
+                                                ElevatedButton(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                  onPressed: () async {
+                                                    await DatabaseService()
+                                                        .removeStudentFromQuiz(
+                                                          quizId,
+                                                          email,
+                                                        );
+
+                                                    if (context.mounted) {
+                                                      Navigator.pop(
+                                                        context,
+                                                      ); // close dialog
+                                                      Navigator.pop(
+                                                        context,
+                                                      ); // close manage students dialog
+                                                    }
+
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          "Student removed successfully",
+                                                        ),
+                                                        backgroundColor:
+                                                            Colors.green,
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: const Text("Remove"),
+                                                ),
+                                              ],
+                                            ),
+                                      );
                                     },
                                   ),
                                 ],
