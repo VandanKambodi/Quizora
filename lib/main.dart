@@ -6,6 +6,7 @@ import 'screens/login_screen.dart';
 import 'screens/registration_screen.dart';
 import 'screens/teacher/dashboard.dart';
 import 'screens/student_dashboard.dart';
+import 'screens/student_main_wrapper.dart';
 import 'constants.dart';
 
 void main() async {
@@ -37,7 +38,8 @@ class QuizoraApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
         '/teacher_dashboard': (context) => const TeacherDashboard(),
-        '/student_dashboard': (context) => const StudentDashboard(),
+        // '/student_dashboard': (context) => const StudentDashboard(),
+        '/student_dashboard': (context) => const StudentMainWrapper(),
       },
     );
   }

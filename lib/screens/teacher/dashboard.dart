@@ -10,6 +10,8 @@ class TeacherDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Quizora"),
@@ -18,8 +20,7 @@ class TeacherDashboard extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout, color: qWhite),
             onPressed: () async {
-              await FirebaseAuth.instance
-                  .signOut(); // Logs user out of Firebase
+              await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 Navigator.pushReplacementNamed(context, '/login');
               }
@@ -36,18 +37,6 @@ class TeacherDashboard extends StatelessWidget {
               MaterialPageRoute(builder: (context) => const AddQuizPage()),
             ),
       ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Quizzes',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -70,106 +59,107 @@ class TeacherDashboard extends StatelessWidget {
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     var quiz = docs[index];
-                    return Card(
+                    Map<String, dynamic> data =
+                        quiz.data() as Map<String, dynamic>;
+                    String currentUserEmail = currentUser?.email ?? "";
+
+                    // Permission logic: Are you the owner or an invited collaborator?
+                    bool isOwner = data['createdBy'] == currentUser?.uid;
+                    List<dynamic> collaborators = data['collaborators'] ?? [];
+                    bool isCollaborator = collaborators.contains(
+                      currentUserEmail,
+                    );
+                    bool hasPermission =
+                        isOwner || isCollaborator;
+
+                    return
+                    Card(
+                      elevation: 4, // Makes the card pop
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                       margin: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 8,
+                        vertical: 10,
                       ),
-                      child: ListTile(
-                        title: Text(quiz['title']),
-                        subtitle: Text(
-                          "Time: ${quiz['timer']} mins | ${quiz['assignedStudents'].length} Students",
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit,
-                                color: Colors.orange,
-                              ),
-                              onPressed:
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  data['title'],
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Icon(
+                                  isOwner ? Icons.star : Icons.people,
+                                  color: Colors.amber,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Time: ${data['timer']} mins | ${data['assignedStudents'].length} Students",
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const Divider(height: 25),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                // Workable Edit Button
+                                _buildActionButton(
+                                  Icons.edit,
+                                  "Edit",
+                                  Colors.orange,
                                   () => _showEditQuizDialog(
                                     context,
                                     quiz.id,
-                                    quiz.data() as Map<String, dynamic>,
+                                    data,
                                   ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.group, color: qPrimary),
-                              onPressed:
+                                ),
+                                // Manage Students
+                                _buildActionButton(
+                                  Icons.group,
+                                  "Students",
+                                  qPrimary,
                                   () => _manageStudentsDialog(
                                     context,
                                     quiz.id,
-                                    quiz['assignedStudents'],
+                                    data['assignedStudents'],
                                   ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder:
-                                      (context) => AlertDialog(
-                                        title: const Text("Delete Quiz"),
-                                        content: const Text(
-                                          "Are you sure you want to delete this quiz?\n\nThis action cannot be undone.",
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed:
-                                                () => Navigator.pop(context),
-                                            child: const Text("Cancel"),
-                                          ),
-                                          ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                            ),
-                                            onPressed: () async {
-                                              await DatabaseService()
-                                                  .deleteQuiz(quiz.id);
-                                              if (context.mounted)
-                                                Navigator.pop(context);
-
-                                              // Success feedback
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    "Quiz deleted successfully",
-                                                  ),
-                                                  backgroundColor: Colors.green,
-                                                ),
-                                              );
-                                            },
-                                            child: const Text("Delete"),
-                                          ),
-                                        ],
-                                      ),
-                                );
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.co_present,
-                                color: Colors.green,
-                              ),
-                              onPressed: () {
-                                // Safely check if the field exists in the document map
-                                Map<String, dynamic> data =
-                                    quiz.data() as Map<String, dynamic>;
-                                List<dynamic> collaborators =
-                                    data.containsKey('collaborators')
-                                        ? data['collaborators']
-                                        : [];
-
-                                _manageCollaboratorsDialog(
-                                  context,
-                                  quiz.id,
-                                  collaborators,
-                                );
-                              },
+                                ),
+                                // Manage Teachers
+                                _buildActionButton(
+                                  Icons.co_present,
+                                  "Teachers",
+                                  Colors.green,
+                                  () => _manageCollaboratorsDialog(
+                                    context,
+                                    quiz.id,
+                                    data,
+                                    isOwner,
+                                    currentUserEmail,
+                                  ),
+                                ),
+                                // Delete or Leave
+                                _buildActionButton(
+                                  isOwner ? Icons.delete : Icons.exit_to_app,
+                                  isOwner ? "Delete" : "Leave",
+                                  Colors.red,
+                                  () => _handleDeleteOrLeave(
+                                    context,
+                                    quiz.id,
+                                    isOwner,
+                                    currentUserEmail,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -182,6 +172,83 @@ class TeacherDashboard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  // Helper Widget for modern buttons
+  Widget _buildActionButton(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleDeleteOrLeave(
+    BuildContext context,
+    String quizId,
+    bool isOwner,
+    String? userEmail,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(isOwner ? "Delete Quiz" : "Leave Quiz"),
+            content: Text(
+              isOwner
+                  ? "Are you sure? This will remove the quiz for everyone."
+                  : "Are you sure you want to remove this quiz from your dashboard?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  if (isOwner) {
+                    await DatabaseService().deleteQuiz(quizId);
+                  } else {
+                    await DatabaseService().removeCollaborator(
+                      quizId,
+                      userEmail!,
+                    );
+                  }
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isOwner ? "Quiz deleted" : "You left the quiz",
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                child: Text(isOwner ? "Delete" : "Leave"),
+              ),
+            ],
+          ),
     );
   }
 
@@ -287,7 +354,7 @@ class TeacherDashboard extends StatelessWidget {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Add Teacher Collaborator"),
+            title: const Text("Add Teacher"),
             content: TextField(
               controller: controller,
               decoration: const InputDecoration(labelText: "Teacher Email"),
@@ -299,11 +366,28 @@ class TeacherDashboard extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  await DatabaseService().addCollaborator(
-                    quizId,
-                    controller.text,
-                  );
-                  if (context.mounted) Navigator.pop(context);
+                  try {
+                    await DatabaseService().addCollaborator(
+                      quizId,
+                      controller.text,
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Teacher added successfully"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 child: const Text("Add"),
               ),
@@ -354,113 +438,74 @@ class TeacherDashboard extends StatelessWidget {
   void _manageCollaboratorsDialog(
     BuildContext context,
     String quizId,
-    List<dynamic> currentTeachers,
+    Map<String, dynamic> data,
+    bool isOwner,
+    String myEmail,
   ) {
+    List<dynamic> collaborators = data['collaborators'] ?? [];
+    String ownerId = data['createdBy'];
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Manage Teacher Collaborators"),
+            title: const Text("Manage Teachers"),
             content: SizedBox(
               width: double.maxFinite,
-              height: 300,
+              height: 350,
               child: Column(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _showCollaboratorDialog(context, quizId),
-                    icon: const Icon(Icons.person_add_alt_1),
-                    label: const Text("Invite Teacher"),
+                  // Only original owner can invite
+                  if (isOwner)
+                    ElevatedButton.icon(
+                      onPressed: () => _showCollaboratorDialog(context, quizId),
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: const Text("Invite Teacher"),
+                    ),
+                  const Divider(),
+                  // Fetch real email from Users collection
+                  FutureBuilder<DocumentSnapshot>(
+                    future:
+                        FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(ownerId)
+                            .get(),
+                    builder: (context, userSnap) {
+                      if (!userSnap.hasData)
+                        return const Text("Loading Owner...");
+                      String ownerEmail = userSnap.data!.get('email');
+                      return ListTile(
+                        leading: const Icon(Icons.star, color: Colors.amber),
+                        title: Text(ownerEmail),
+                        subtitle: const Text("Main Creator (Locked)"),
+                      );
+                    },
                   ),
                   const Divider(),
                   Expanded(
                     child: ListView.builder(
-                      itemCount: currentTeachers.length,
+                      itemCount: collaborators.length,
                       itemBuilder: (context, index) {
-                        String email = currentTeachers[index];
+                        String email = collaborators[index];
+                        bool isMe = email == myEmail;
+
                         return ListTile(
-                          title: Text(
-                            email,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.orange,
-                                  size: 20,
-                                ),
-                                onPressed:
-                                    () => _editCollaboratorDialog(
-                                      context,
-                                      quizId,
-                                      email,
+                          title: Text(email),
+                          trailing:
+                              (isOwner || isMe)
+                                  ? IconButton(
+                                    icon: const Icon(
+                                      Icons.remove_circle,
+                                      color: Colors.red,
                                     ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.remove_circle,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder:
-                                        (context) => AlertDialog(
-                                          title: const Text(
-                                            "Remove Collaborator",
-                                          ),
-                                          content: Text(
-                                            "Are you sure you want to remove\n$email as a collaborator?",
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(context),
-                                              child: const Text("Cancel"),
-                                            ),
-                                            ElevatedButton(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red,
-                                              ),
-                                              onPressed: () async {
-                                                await DatabaseService()
-                                                    .removeCollaborator(
-                                                      quizId,
-                                                      email,
-                                                    );
-
-                                                if (context.mounted) {
-                                                  Navigator.pop(
-                                                    context,
-                                                  ); // close dialog
-                                                  Navigator.pop(
-                                                    context,
-                                                  ); // close manage collaborators dialog
-                                                }
-
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      "Collaborator removed successfully",
-                                                    ),
-                                                    backgroundColor:
-                                                        Colors.green,
-                                                  ),
-                                                );
-                                              },
-                                              child: const Text("Remove"),
-                                            ),
-                                          ],
-                                        ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                                    onPressed: () async {
+                                      await DatabaseService()
+                                          .removeCollaborator(quizId, email);
+                                      if (context.mounted)
+                                        Navigator.pop(context);
+                                    },
+                                  )
+                                  : null,
                         );
                       },
                     ),
@@ -468,12 +513,6 @@ class TeacherDashboard extends StatelessWidget {
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Close"),
-              ),
-            ],
           ),
     );
   }

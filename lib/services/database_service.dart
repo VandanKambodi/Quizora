@@ -166,8 +166,31 @@ class DatabaseService {
 
   // DELETE: Remove a teacher from the collaborators list
   Future<void> removeCollaborator(String quizId, String email) async {
-    await _db.collection('quizzes').doc(quizId).update({
-      'collaborators': FieldValue.arrayRemove([email]),
-    });
+    try {
+      await _db.collection('quizzes').doc(quizId).update({
+        'collaborators': FieldValue.arrayRemove([email.trim().toLowerCase()]),
+      });
+    } catch (e) {
+      throw Exception("Failed to remove collaborator: $e");
+    }
+  }
+
+  // Check if student already attempted this quiz
+  Future<bool> hasAttempted(String quizId) async {
+    try {
+      String? email = _auth.currentUser?.email;
+      // Simple query to avoid complex index requirements where possible
+      var snap =
+          await _db
+              .collection('results')
+              .where('quizId', isEqualTo: quizId)
+              .where('studentEmail', isEqualTo: email)
+              .get();
+
+      return snap.docs.isNotEmpty;
+    } catch (e) {
+      print("Index or Permission Error: $e");
+      return false;
+    }
   }
 }

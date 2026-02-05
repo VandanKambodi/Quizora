@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants.dart';
+import 'exam_screen.dart';
+import '../services/database_service.dart';
+import 'result_screen.dart';
 
 class StudentDashboard extends StatelessWidget {
   const StudentDashboard({super.key});
@@ -26,7 +29,6 @@ class StudentDashboard extends StatelessWidget {
           ),
         ],
       ),
-
       backgroundColor: const Color(0xFFF6F7F9),
       body: Center(
         child: ConstrainedBox(
@@ -41,11 +43,9 @@ class StudentDashboard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
                 ),
               ),
-
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
@@ -53,9 +53,7 @@ class StudentDashboard extends StatelessWidget {
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
               ),
-
               const SizedBox(height: 14),
-
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream:
@@ -64,26 +62,18 @@ class StudentDashboard extends StatelessWidget {
                           .where('assignedStudents', arrayContains: user?.email)
                           .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.hasError) {
+                    if (snapshot.hasError)
                       return const Center(child: Text("Error loading quizzes"));
-                    }
-
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
                         child: CircularProgressIndicator(color: qPrimary),
                       );
                     }
-
                     final quizzes = snapshot.data!.docs;
-
-                    if (quizzes.isEmpty) {
+                    if (quizzes.isEmpty)
                       return const Center(
-                        child: Text(
-                          "No quizzes assigned yet.",
-                          style: TextStyle(fontSize: 16, color: Colors.black54),
-                        ),
+                        child: Text("No quizzes assigned yet."),
                       );
-                    }
 
                     return ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
@@ -91,6 +81,7 @@ class StudentDashboard extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final data =
                             quizzes[index].data() as Map<String, dynamic>;
+                        final quizId = quizzes[index].id;
 
                         return Container(
                           margin: const EdgeInsets.symmetric(vertical: 10),
@@ -107,23 +98,15 @@ class StudentDashboard extends StatelessWidget {
                             ],
                           ),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Container(
-                                height: 46,
-                                width: 46,
-                                decoration: BoxDecoration(
-                                  color: qPrimary.withOpacity(0.12),
-                                  shape: BoxShape.circle,
-                                ),
+                              CircleAvatar(
+                                backgroundColor: qPrimary.withOpacity(0.12),
                                 child: const Icon(
                                   Icons.assignment,
                                   color: qPrimary,
                                 ),
                               ),
-
                               const SizedBox(width: 16),
-
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,7 +118,6 @@ class StudentDashboard extends StatelessWidget {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
                                     Text(
                                       "⏱ ${data['timer']} mins • ${data['category'] ?? 'General'}",
                                       style: const TextStyle(
@@ -146,28 +128,49 @@ class StudentDashboard extends StatelessWidget {
                                   ],
                                 ),
                               ),
-
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: qPrimary,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 22,
-                                    vertical: 12,
-                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
                                   ),
                                 ),
-                                onPressed: () {
-                                  _startQuiz(context, quizzes[index].id, data);
+                                onPressed: () async {
+                                  var resultSnap =
+                                      await FirebaseFirestore.instance
+                                          .collection('results')
+                                          .where('quizId', isEqualTo: quizId)
+                                          .where(
+                                            'studentEmail',
+                                            isEqualTo: user?.email,
+                                          )
+                                          .get();
+
+                                  if (resultSnap.docs.isNotEmpty) {
+                                    // REDIRECT TO RESULT if already done
+                                    var doc = resultSnap.docs.first.data();
+                                    if (context.mounted) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => ResultScreen(
+                                                score: doc['score'],
+                                                total: doc['total'],
+                                                reviewData: doc['review'],
+                                              ),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    // START QUIZ if not done
+                                    if (context.mounted)
+                                      _startQuiz(context, quizId, data);
+                                  }
                                 },
                                 child: const Text(
                                   "START",
-                                  style: TextStyle(
-                                    color: qWhite,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: TextStyle(color: qWhite),
                                 ),
                               ),
                             ],
@@ -190,8 +193,11 @@ class StudentDashboard extends StatelessWidget {
     String quizId,
     Map<String, dynamic> quizData,
   ) {
-    ScaffoldMessenger.of(
+    Navigator.push(
       context,
-    ).showSnackBar(SnackBar(content: Text("Starting ${quizData['title']}...")));
+      MaterialPageRoute(
+        builder: (context) => ExamScreen(quizId: quizId, quizData: quizData),
+      ),
+    );
   }
 }
