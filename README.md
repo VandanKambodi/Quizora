@@ -1,4 +1,4 @@
-# quizora
+# Quizora
 
 A new Flutter project.
 
