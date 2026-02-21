@@ -13,6 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true; // For password visibility toggle
 
   void _login() async {
     if (_emailController.text.isEmpty || _passController.text.isEmpty) {
@@ -45,7 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       String msg = "Login failed";
-
       if (e.code == 'user-not-found') {
         msg = "No account found with this email";
       } else if (e.code == 'wrong-password') {
@@ -59,7 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         msg = "Invalid email or password";
       }
-
       _showError(msg);
     } catch (e) {
       _showError("Something went wrong. Try again");
@@ -71,21 +70,16 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(
           children: [
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                msg,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: Text(msg, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -96,58 +90,154 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: qBg,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(30),
+          padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/quizora-nbg.png', width: 120),
-              const SizedBox(height: 20),
-
-              Text(
-                "Welcome Back",
-                style: qTitleStyle.copyWith(color: qTextPrimary),
-              ),
-              const SizedBox(height: 30),
-
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: _passController,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
+              Hero(
+                tag: 'app_logo',
+                child: Image.asset('assets/images/quizora-nbg.png', width: 140),
               ),
               const SizedBox(height: 25),
 
+              Text("Welcome Back", style: qTitleStyle),
+              const SizedBox(height: 8),
+              Text("Sign in to continue to Quizora", style: qSubTitleStyle),
+              const SizedBox(height: 40),
+
+              _buildTextField(
+                controller: _emailController,
+                hintText: "Email",
+                icon: Icons.email_outlined,
+              ),
+              const SizedBox(height: 20),
+
+              _buildTextField(
+                controller: _passController,
+                hintText: "Password",
+                icon: Icons.lock_outline,
+                isPassword: true,
+                obscureText: _obscurePassword,
+                onSuffixTap: () {
+                  setState(() => _obscurePassword = !_obscurePassword);
+                },
+              ),
+
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {},
+                  child: Text(
+                    "Forgot Password?",
+                    style: TextStyle(
+                      color: qPrimaryDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+
               _isLoading
                   ? const CircularProgressIndicator(color: qPrimary)
-                  : ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: qPrimary,
-                      minimumSize: const Size(double.infinity, 50),
+                  : Container(
+                    width: double.infinity,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: qPrimary.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                    onPressed: _login,
-                    child: Text("LOGIN", style: qButtonStyle),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: qPrimary,
+                        foregroundColor: qWhite,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _login,
+                      child: Text("LOGIN", style: qButtonStyle),
+                    ),
                   ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 30),
 
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/register'),
-                child: const Text("New user? Create an account"),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("New user? ", style: qSubTitleStyle),
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/register'),
+                    child: Text(
+                      "Create an account",
+                      style: qSubTitleStyle.copyWith(
+                        color: qPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool isPassword = false,
+    bool obscureText = false,
+    VoidCallback? onSuffixTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: qWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        style: const TextStyle(color: qTextPrimary),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: qGrey, fontSize: 15),
+          prefixIcon: Icon(icon, color: qPrimary, size: 22),
+          suffixIcon:
+              isPassword
+                  ? IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                      color: qGrey,
+                    ),
+                    onPressed: onSuffixTap,
+                  )
+                  : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 20,
           ),
         ),
       ),

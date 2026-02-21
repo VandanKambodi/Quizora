@@ -24,37 +24,82 @@ class _StudentMainWrapperState extends State<StudentMainWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Quizora",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: qPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle, size: 32, color: qWhite),
-            onPressed:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePage()),
-                ),
+      backgroundColor: qBg,
+      // We remove the AppBar here because the Dashboard/History/Settings
+      // now have their own custom-styled headers for a more premium look.
+      body: IndexedStack(index: _currentIndex, children: _pages),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: qWhite,
+        boxShadow: [
+          BoxShadow(
+            color: qBlack.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
           ),
-          const SizedBox(width: 10),
         ],
       ),
-      body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: qPrimary,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: "Settings",
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _navItem(Icons.home_rounded, "Home", 0),
+              _navItem(Icons.history_rounded, "History", 1),
+              _navItem(Icons.settings_rounded, "Settings", 2),
+              // Profile is treated as a Nav Item here for easier access
+              _navItem(Icons.person_rounded, "Profile", 3),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label, int index) {
+    bool isSelected = _currentIndex == index;
+
+    return GestureDetector(
+      onTap: () {
+        if (index == 3) {
+          // Special case for Profile: Navigate to full page
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ProfilePage()),
+          );
+        } else {
+          setState(() => _currentIndex = index);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? qPrimary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? qPrimary : qGrey, size: 26),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: qPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

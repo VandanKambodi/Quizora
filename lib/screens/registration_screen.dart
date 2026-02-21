@@ -17,6 +17,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   String _selectedRole = 'Student';
   bool _isLoading = false;
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
 
   Future<void> _register() async {
     if (_nameController.text.isEmpty ||
@@ -26,12 +28,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _showError("All fields are required");
       return;
     }
-
     if (_passController.text != _confirmPassController.text) {
       _showError("Passwords do not match");
       return;
     }
-
     setState(() => _isLoading = true);
     try {
       UserCredential cred = await FirebaseAuth.instance
@@ -39,7 +39,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             email: _emailController.text.trim(),
             password: _passController.text.trim(),
           );
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(cred.user!.uid)
@@ -50,14 +49,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             'uid': cred.user!.uid,
             'createdAt': DateTime.now(),
           });
-
       if (!mounted) return;
-
       String nextRoute =
           _selectedRole == 'Teacher'
               ? '/teacher_dashboard'
               : '/student_dashboard';
-
       Navigator.pushReplacementNamed(context, nextRoute);
     } catch (e) {
       _showError(e.toString());
@@ -69,18 +65,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(msg, style: const TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+        content: Text(msg),
       ),
     );
   }
@@ -88,76 +77,191 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: qBg,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: qPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(30),
+          padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Text("Join Quizora", style: qTitleStyle),
-              const SizedBox(height: 30),
+              const SizedBox(height: 8),
+              Text("Create an account", style: qSubTitleStyle),
+              const SizedBox(height: 35),
 
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: "Full Name",
-                  border: OutlineInputBorder(),
+              _buildInputContainer(
+                child: TextField(
+                  controller: _nameController,
+                  decoration: _inputDeco("Full Name", Icons.person_outline),
                 ),
               ),
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              _buildInputContainer(
+                child: TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: _inputDeco("Email Address", Icons.email_outlined),
                 ),
               ),
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: _passController,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              _buildInputContainer(
+                child: TextField(
+                  controller: _passController,
+                  obscureText: _obscurePass,
+                  decoration: _inputDeco(
+                    "Password",
+                    Icons.lock_outline,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePass ? Icons.visibility_off : Icons.visibility,
+                        color: qGrey,
+                      ),
+                      onPressed:
+                          () => setState(() => _obscurePass = !_obscurePass),
+                    ),
+                  ),
                 ),
-                obscureText: true,
               ),
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: _confirmPassController,
-                decoration: const InputDecoration(
-                  labelText: "Confirm Password",
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              _buildInputContainer(
+                child: TextField(
+                  controller: _confirmPassController,
+                  obscureText: _obscureConfirm,
+                  decoration: _inputDeco("Confirm Password", Icons.lock_reset),
                 ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-
-              DropdownButtonFormField(
-                value: _selectedRole,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                items:
-                    ['Student', 'Teacher']
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                        .toList(),
-                onChanged: (v) => setState(() => _selectedRole = v!),
               ),
               const SizedBox(height: 25),
 
+              // Role Selector Label
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    "I am a:",
+                    style: qSubTitleStyle.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildRoleCard('Student', Icons.school_outlined),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildRoleCard('Teacher', Icons.co_present_outlined),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 35),
+
               _isLoading
                   ? const CircularProgressIndicator(color: qPrimary)
-                  : ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: qPrimary,
-                      minimumSize: const Size(double.infinity, 50),
+                  : Container(
+                    width: double.infinity,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: qPrimary.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                    onPressed: _register,
-                    child: Text("REGISTER", style: qButtonStyle),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: qPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _register,
+                      child: Text("CREATE ACCOUNT", style: qButtonStyle),
+                    ),
                   ),
+              const SizedBox(height: 20),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputContainer({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: qWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  InputDecoration _inputDeco(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: qGrey, fontSize: 15),
+      prefixIcon: Icon(icon, color: qPrimary, size: 22),
+      border: InputBorder.none,
+      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+    );
+  }
+
+  Widget _buildRoleCard(String role, IconData icon) {
+    bool isSelected = _selectedRole == role;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRole = role),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: isSelected ? qPrimary : qWhite,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isSelected ? qPrimary : Colors.transparent),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: isSelected ? qWhite : qPrimary),
+            const SizedBox(height: 5),
+            Text(
+              role,
+              style: TextStyle(
+                color: isSelected ? qWhite : qTextPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
