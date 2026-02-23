@@ -276,6 +276,7 @@ class StudentDashboard extends StatelessWidget {
       ),
       onPressed: () {
         if (isDone) {
+          // Navigate to Review...
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -288,6 +289,16 @@ class StudentDashboard extends StatelessWidget {
             ),
           );
         } else {
+          // CHECK IF QUIZ IS ACTIVE
+          bool isActive = data['isActive'] ?? true;
+          if (!isActive) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("This quiz has been closed by the teacher."),
+              ),
+            );
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(

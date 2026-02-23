@@ -193,4 +193,36 @@ class DatabaseService {
       return false;
     }
   }
+
+  // Fetch all results for a specific quiz
+  Stream<QuerySnapshot> getResultsForQuiz(String quizId) {
+    return _db
+        .collection('results')
+        .where('quizId', isEqualTo: quizId)
+        .snapshots();
+  }
+
+  // Fetch a summary of results for a specific quiz
+  Stream<QuerySnapshot> getQuizSummary(String quizId) {
+    return _db
+        .collection('results')
+        .where('quizId', isEqualTo: quizId)
+        .snapshots();
+  }
+
+  // Fetch leaderboard: High score first, then lowest time
+  Stream<QuerySnapshot> getQuizLeaderboard(String quizId) {
+    return _db
+        .collection('results')
+        .where('quizId', isEqualTo: quizId)
+        .orderBy('score', descending: true)
+        .orderBy('timeUsedSeconds', descending: false)
+        .snapshots();
+  }
+
+  Future<void> toggleQuizStatus(String quizId, bool isActive) async {
+    await _db.collection('quizzes').doc(quizId).update({
+      'isActive': isActive, // Manual override
+    });
+  }
 }

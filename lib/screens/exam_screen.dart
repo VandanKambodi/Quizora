@@ -60,13 +60,20 @@ class _ExamScreenState extends State<ExamScreen> {
     setState(() => _isSubmitting = true);
     _timer?.cancel();
 
+    // DECLARE VARIABLES FIRST TO FIX YOUR ERRORS
     int score = 0;
     List<Map<String, dynamic>> reviewData = [];
 
+    // CALCULATE TIME USED
+    int totalTimeAllowed = widget.quizData['timer'] * 60; // Minutes to seconds
+    int timeUsedSeconds = totalTimeAllowed - _timeLeft;
+
+    // GENERATE REVIEW AND SCORE
     for (int i = 0; i < _questions.length; i++) {
       String selected = _selectedAnswers[i] ?? "No Answer";
       String correct = _questions[i]['answer'];
       bool isCorrect = selected == correct;
+
       if (isCorrect) score++;
 
       reviewData.add({
@@ -77,13 +84,15 @@ class _ExamScreenState extends State<ExamScreen> {
       });
     }
 
+    // SAVE TO FIRESTORE
     await FirebaseFirestore.instance.collection('results').add({
       'quizId': widget.quizId,
       'quizTitle': widget.quizData['title'],
       'studentEmail': FirebaseAuth.instance.currentUser?.email,
       'score': score,
       'total': _questions.length,
-      'review': reviewData,
+      'timeUsedSeconds': timeUsedSeconds, // Required for Leaderboard
+      'review': reviewData, // Now 'reviewData' is defined!
       'submittedAt': FieldValue.serverTimestamp(),
     });
 

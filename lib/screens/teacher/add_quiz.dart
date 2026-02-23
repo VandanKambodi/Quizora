@@ -23,6 +23,7 @@ class _AddQuizPageState extends State<AddQuizPage> {
       SnackBar(
         backgroundColor: Colors.red.shade600,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(
           children: [
@@ -42,6 +43,7 @@ class _AddQuizPageState extends State<AddQuizPage> {
       SnackBar(
         backgroundColor: Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(
           children: [
@@ -60,7 +62,6 @@ class _AddQuizPageState extends State<AddQuizPage> {
     final Uri url = Uri.parse(
       'https://quizora-c93f1.web.app/quiz_template.xlsx',
     );
-
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       _showError("Unable to open template link");
     }
@@ -90,7 +91,6 @@ class _AddQuizPageState extends State<AddQuizPage> {
       );
 
       _showSuccess("Quiz created successfully");
-
       if (mounted) Navigator.pop(context);
     } catch (_) {
       _showError("Failed to create quiz");
@@ -102,110 +102,249 @@ class _AddQuizPageState extends State<AddQuizPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Quizora"), backgroundColor: qPrimary),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Card(
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+      backgroundColor: qBg,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildHeader(),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionLabel("QUIZ INFORMATION"),
+                  const SizedBox(height: 15),
+
+                  // Form Container
+                  _buildFormCard(),
+
+                  const SizedBox(height: 25),
+                  _buildSectionLabel("QUESTIONS TEMPLATE"),
+                  const SizedBox(height: 15),
+
+                  // Template Download Card
+                  _buildTemplateCard(),
+
+                  const SizedBox(height: 40),
+
+                  // Action Button
+                  _isUploading
+                      ? const Center(
+                        child: CircularProgressIndicator(color: qPrimary),
+                      )
+                      : _buildSubmitButton(),
+
+                  const SizedBox(height: 30),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(25),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      "Create New Quiz",
-                      textAlign: TextAlign.center,
-                      style: qTitleStyle,
-                    ),
-                    const SizedBox(height: 30),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                    TextField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: "Quiz Title",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-
-                    TextField(
-                      controller: _timerController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: "Timer (Minutes)",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-
-                    TextField(
-                      controller: _categoryController,
-                      decoration: const InputDecoration(
-                        labelText: "Category",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-
-                    TextField(
-                      controller: _descController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: "Description",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: qPrimary,
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                      onPressed: _downloadTemplate,
-                      icon: const Icon(Icons.download, color: qWhite),
-                      label: const Text(
-                        "Download Excel Template",
-                        style: TextStyle(color: qWhite),
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    _isUploading
-                        ? const Center(
-                          child: CircularProgressIndicator(color: qPrimary),
-                        )
-                        : ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: qPrimary,
-                            minimumSize: const Size(double.infinity, 55),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          onPressed: _createQuiz,
-                          child: const Text(
-                            "Create Quiz",
-                            style: TextStyle(
-                              color: qWhite,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                  ],
-                ),
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 60, 25, 30),
+      decoration: const BoxDecoration(
+        color: qPrimary,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(40),
+          bottomRight: Radius.circular(40),
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_ios, color: qWhite, size: 20),
+          ),
+          const Expanded(
+            child: Text(
+              "Configure Quiz",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: qWhite,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
+          const SizedBox(width: 48), // Balancing back button
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: qWhite,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: qBlack.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildTextField(
+            _titleController,
+            "Quiz Title",
+            Icons.title_rounded,
+            false,
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            _timerController,
+            "Timer (Minutes)",
+            Icons.timer_outlined,
+            true,
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            _categoryController,
+            "Category (e.g. Science)",
+            Icons.category_outlined,
+            false,
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            _descController,
+            "Short Description",
+            Icons.description_outlined,
+            false,
+            maxLines: 3,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController ctrl,
+    String label,
+    IconData icon,
+    bool isNum, {
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: isNum ? TextInputType.number : TextInputType.text,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: qPrimary, size: 20),
+        filled: true,
+        fillColor: qBg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
         ),
+        labelStyle: const TextStyle(fontSize: 14, color: qGrey),
+      ),
+    );
+  }
+
+  Widget _buildTemplateCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: qWhite,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: qPrimary.withOpacity(0.1), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.table_view_rounded,
+              color: Colors.green,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "Excel Template",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  "Download & fill the questions",
+                  style: TextStyle(color: qGrey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _downloadTemplate,
+            icon: const Icon(
+              Icons.download_for_offline_rounded,
+              color: qPrimary,
+              size: 32,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: qPrimary.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: qPrimary,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          elevation: 0,
+        ),
+        onPressed: _createQuiz,
+        child: const Text(
+          "PUBLISH QUIZ",
+          style: TextStyle(
+            color: qWhite,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 1.2,
+        color: qGrey,
       ),
     );
   }

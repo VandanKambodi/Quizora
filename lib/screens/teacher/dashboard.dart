@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
 import '../../constants.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'add_quiz.dart';
+import 'quiz_leaderboard.dart';
+import 'quiz_analytics_screen.dart';
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -11,172 +13,334 @@ class TeacherDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
+    final String name = currentUser?.email?.split('@')[0] ?? 'Teacher';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Quizora"),
-        backgroundColor: qPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: qWhite),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: qPrimary,
-        child: const Icon(Icons.add, color: qWhite),
-        onPressed:
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AddQuizPage()),
-            ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              "My Quizzes",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: qBg,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed:
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddQuizPage()),
+              ),
+          backgroundColor: qPrimary,
+          icon: const Icon(Icons.add_rounded, color: qWhite),
+          label: const Text(
+            "CREATE QUIZ",
+            style: TextStyle(
+              color: qWhite,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.1,
             ),
           ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: DatabaseService().getTeacherQuizzes(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return const Center(child: CircularProgressIndicator());
-                final docs = snapshot.data!.docs;
-
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    var quiz = docs[index];
-                    Map<String, dynamic> data =
-                        quiz.data() as Map<String, dynamic>;
-                    String currentUserEmail = currentUser?.email ?? "";
-
-                    // Permission logic: Are you the owner or an invited collaborator?
-                    bool isOwner = data['createdBy'] == currentUser?.uid;
-                    List<dynamic> collaborators = data['collaborators'] ?? [];
-                    bool isCollaborator = collaborators.contains(
-                      currentUserEmail,
-                    );
-                    bool hasPermission =
-                        isOwner || isCollaborator;
-
-                    return
-                    Card(
-                      elevation: 4, // Makes the card pop
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+        ),
+        body: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(25, 60, 25, 20),
+              decoration: const BoxDecoration(
+                color: qPrimary,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(40),
+                  bottomRight: Radius.circular(40),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  data['title'],
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Icon(
-                                  isOwner ? Icons.star : Icons.people,
-                                  color: Colors.amber,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
                             Text(
-                              "Time: ${data['timer']} mins | ${data['assignedStudents'].length} Students",
-                              style: TextStyle(color: Colors.grey[600]),
+                              "Teacher Panel",
+                              style: qSubTitleStyle.copyWith(
+                                color: qWhite.withOpacity(0.8),
+                                fontSize: 14,
+                              ),
                             ),
-                            const Divider(height: 25),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                // Workable Edit Button
-                                _buildActionButton(
-                                  Icons.edit,
-                                  "Edit",
-                                  Colors.orange,
-                                  () => _showEditQuizDialog(
-                                    context,
-                                    quiz.id,
-                                    data,
-                                  ),
-                                ),
-                                // Manage Students
-                                _buildActionButton(
-                                  Icons.group,
-                                  "Students",
-                                  qPrimary,
-                                  () => _manageStudentsDialog(
-                                    context,
-                                    quiz.id,
-                                    data['assignedStudents'],
-                                  ),
-                                ),
-                                // Manage Teachers
-                                _buildActionButton(
-                                  Icons.co_present,
-                                  "Teachers",
-                                  Colors.green,
-                                  () => _manageCollaboratorsDialog(
-                                    context,
-                                    quiz.id,
-                                    data,
-                                    isOwner,
-                                    currentUserEmail,
-                                  ),
-                                ),
-                                // Delete or Leave
-                                _buildActionButton(
-                                  isOwner ? Icons.delete : Icons.exit_to_app,
-                                  isOwner ? "Delete" : "Leave",
-                                  Colors.red,
-                                  () => _handleDeleteOrLeave(
-                                    context,
-                                    quiz.id,
-                                    isOwner,
-                                    currentUserEmail,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              "Hello, ${name[0].toUpperCase()}${name.substring(1)}",
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: qTitleStyle.copyWith(
+                                color: qWhite,
+                                fontSize: 26,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
-                );
-              },
+                      const SizedBox(width: 15),
+
+                      // --- UNIQUE: Glassmorphic Profile Trigger ---
+                      GestureDetector(
+                        onTap: () => _showProfileMenu(context, name),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: qWhite.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor: qWhite,
+                            child: Text(
+                              name[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: qPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 25),
+                  Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: qWhite.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: TabBar(
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      indicator: BoxDecoration(
+                        color: qWhite,
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      labelColor: qPrimary,
+                      unselectedLabelColor: qWhite,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      tabs: const [
+                        Tab(text: "Active Quizzes"),
+                        Tab(text: "Inactive"),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildFilteredQuizList(currentUser, showActive: true),
+                  _buildFilteredQuizList(currentUser, showActive: false),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // Helper Widget for modern buttons
-  Widget _buildActionButton(
+  Widget _buildFilteredQuizList(User? user, {required bool showActive}) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: DatabaseService().getTeacherQuizzes(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: qPrimary),
+          );
+        }
+        final allDocs = snapshot.data?.docs ?? [];
+        final filteredDocs =
+            allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              bool status = data['isActive'] ?? true;
+              return showActive ? (status == true) : (status == false);
+            }).toList();
+
+        if (filteredDocs.isEmpty) {
+          return _buildEmptyState(
+            showActive
+                ? "No live quizzes currently"
+                : "No inactive quizzes found",
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+          physics: const BouncingScrollPhysics(),
+          itemCount: filteredDocs.length,
+          itemBuilder: (context, index) {
+            var quiz = filteredDocs[index];
+            Map<String, dynamic> data = quiz.data() as Map<String, dynamic>;
+            return _buildPremiumQuizCard(
+              context,
+              quiz.id,
+              data,
+              data['createdBy'] == user?.uid,
+              user?.email ?? "",
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPremiumQuizCard(
+    BuildContext context,
+    String quizId,
+    Map<String, dynamic> data,
+    bool isOwner,
+    String myEmail,
+  ) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: DatabaseService().getQuizSummary(quizId),
+      builder: (context, summarySnap) {
+        int completedCount =
+            summarySnap.hasData ? summarySnap.data!.docs.length : 0;
+        int assignedCount = (data['assignedStudents'] as List).length;
+        bool isActive = data['isActive'] ?? true;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: qWhite,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: qBlack.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.green : Colors.grey.shade400,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: Text(
+                  isActive ? "● LIVE SESSION" : "○ SESSION PAUSED",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: qWhite,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                data['title'],
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: qTextPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Done: $completedCount / $assignedCount • ${data['timer']} mins",
+                                style: qSubTitleStyle.copyWith(fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: isActive,
+                          activeColor: qPrimary,
+                          onChanged:
+                              (val) => DatabaseService().toggleQuizStatus(
+                                quizId,
+                                val,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      child: Divider(height: 1),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildQuickAction(
+                          Icons.edit_note_rounded,
+                          "Edit",
+                          Colors.orange,
+                          () => _showEditQuizDialog(context, quizId, data),
+                        ),
+                        _buildQuickAction(
+                          Icons.group_add_rounded,
+                          "Students",
+                          qPrimary,
+                          () => _manageStudentsDialog(
+                            context,
+                            quizId,
+                            data['assignedStudents'],
+                          ),
+                        ),
+                        _buildQuickAction(
+                          Icons.share_rounded,
+                          "Staff",
+                          Colors.teal,
+                          () => _manageCollaboratorsDialog(
+                            context,
+                            quizId,
+                            data,
+                            isOwner,
+                            myEmail,
+                          ),
+                        ),
+                        _buildQuickAction(
+                          isOwner
+                              ? Icons.delete_sweep_rounded
+                              : Icons.logout_rounded,
+                          isOwner ? "Delete" : "Leave",
+                          Colors.redAccent,
+                          () => _handleDeleteOrLeave(
+                            context,
+                            quizId,
+                            isOwner,
+                            myEmail,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickAction(
     IconData icon,
     String label,
     Color color,
@@ -184,22 +348,61 @@ class TeacherDashboard extends StatelessWidget {
   ) {
     return InkWell(
       onTap: onTap,
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 26),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        await FirebaseAuth.instance.signOut();
+        if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: qWhite.withOpacity(0.2),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.logout_rounded, color: qWhite, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.folder_open_rounded,
+            size: 60,
+            color: qGrey.withOpacity(0.2),
           ),
+          const SizedBox(height: 16),
+          Text(message, style: qSubTitleStyle),
         ],
       ),
     );
   }
+
 
   void _handleDeleteOrLeave(
     BuildContext context,
@@ -211,11 +414,14 @@ class TeacherDashboard extends StatelessWidget {
       context: context,
       builder:
           (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Text(isOwner ? "Delete Quiz" : "Leave Quiz"),
             content: Text(
               isOwner
-                  ? "Are you sure? This will remove the quiz for everyone."
-                  : "Are you sure you want to remove this quiz from your dashboard?",
+                  ? "This action is permanent and will remove the quiz for everyone."
+                  : "Remove this quiz from your dashboard?",
             ),
             actions: [
               TextButton(
@@ -223,27 +429,21 @@ class TeacherDashboard extends StatelessWidget {
                 child: const Text("Cancel"),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: () async {
-                  if (isOwner) {
+                  if (isOwner)
                     await DatabaseService().deleteQuiz(quizId);
-                  } else {
+                  else
                     await DatabaseService().removeCollaborator(
                       quizId,
                       userEmail!,
                     );
-                  }
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isOwner ? "Quiz deleted" : "You left the quiz",
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: Text(isOwner ? "Delete" : "Leave"),
               ),
@@ -261,25 +461,41 @@ class TeacherDashboard extends StatelessWidget {
     final timerEdit = TextEditingController(
       text: currentData['timer'].toString(),
     );
-
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Edit Quiz Details"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleEdit,
-                  decoration: const InputDecoration(labelText: "Quiz Title"),
-                ),
-                TextField(
-                  controller: timerEdit,
-                  decoration: const InputDecoration(labelText: "Timer (mins)"),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text("Edit Quiz"),
+            content: SingleChildScrollView(
+              // PREVENTS KEYBOARD OVERFLOW
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleEdit,
+                    decoration: InputDecoration(
+                      labelText: "Quiz Title",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: timerEdit,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: "Timer (mins)",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -301,134 +517,92 @@ class TeacherDashboard extends StatelessWidget {
     );
   }
 
-  void _showAssignDialog(BuildContext context, String quizId) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Assign Students"),
-            content: TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                hintText: "Enter emails separated by commas",
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    List<String> emails =
-                        controller.text
-                            .split(',')
-                            .map((e) => e.trim())
-                            .toList();
-                    await DatabaseService().assignStudents(quizId, emails);
-                    if (context.mounted) Navigator.pop(context);
-                  } catch (e) {
-                    // Show the specific error (e.g., "Email belongs to a Teacher")
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e.toString().replaceAll("Exception: ", ""),
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: const Text("Assign"),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showCollaboratorDialog(BuildContext context, String quizId) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Add Teacher"),
-            content: TextField(
-              controller: controller,
-              decoration: const InputDecoration(labelText: "Teacher Email"),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await DatabaseService().addCollaborator(
-                      quizId,
-                      controller.text,
-                    );
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Teacher added successfully"),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(e.toString()),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: const Text("Add"),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _editCollaboratorDialog(
+  void _manageStudentsDialog(
     BuildContext context,
     String quizId,
-    String oldEmail,
+    List<dynamic> currentStudents,
   ) {
-    final editController = TextEditingController(text: oldEmail);
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Edit Teacher Email"),
-            content: TextField(
-              controller: editController,
-              decoration: const InputDecoration(labelText: "New Email"),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text("Manage Students"),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _showAssignDialog(context, quizId),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text("Assign New"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: qPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 30),
+                  Flexible(
+                    // PREVENTS OVERFLOW IN LIST
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: currentStudents.length,
+                      itemBuilder: (context, index) {
+                        String email = currentStudents[index];
+                        return ListTile(
+                          title: Text(
+                            email,
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  size: 18,
+                                  color: Colors.orange,
+                                ),
+                                onPressed:
+                                    () => _editStudentDialog(
+                                      context,
+                                      quizId,
+                                      email,
+                                    ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.remove_circle_outline,
+                                  color: Colors.red,
+                                  size: 18,
+                                ),
+                                onPressed: () async {
+                                  await DatabaseService().removeStudentFromQuiz(
+                                    quizId,
+                                    email,
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await DatabaseService().updateCollaboratorEmail(
-                    quizId,
-                    oldEmail,
-                    editController.text.trim(),
-                  );
-                  if (context.mounted) {
-                    Navigator.pop(context); // Close edit dialog
-                    Navigator.pop(context); // Close manage dialog to refresh
-                  }
-                },
-                child: const Text("Save"),
+                child: const Text("Close"),
               ),
             ],
           ),
@@ -444,18 +618,19 @@ class TeacherDashboard extends StatelessWidget {
   ) {
     List<dynamic> collaborators = data['collaborators'] ?? [];
     String ownerId = data['createdBy'];
-
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Manage Teachers"),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text("Teachers Access"),
             content: SizedBox(
               width: double.maxFinite,
-              height: 350,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Only original owner can invite
                   if (isOwner)
                     ElevatedButton.icon(
                       onPressed: () => _showCollaboratorDialog(context, quizId),
@@ -463,7 +638,6 @@ class TeacherDashboard extends StatelessWidget {
                       label: const Text("Invite Teacher"),
                     ),
                   const Divider(),
-                  // Fetch real email from Users collection
                   FutureBuilder<DocumentSnapshot>(
                     future:
                         FirebaseFirestore.instance
@@ -471,32 +645,45 @@ class TeacherDashboard extends StatelessWidget {
                             .doc(ownerId)
                             .get(),
                     builder: (context, userSnap) {
-                      if (!userSnap.hasData)
-                        return const Text("Loading Owner...");
-                      String ownerEmail = userSnap.data!.get('email');
+                      if (!userSnap.hasData) return const Text("Loading...");
                       return ListTile(
-                        leading: const Icon(Icons.star, color: Colors.amber),
-                        title: Text(ownerEmail),
-                        subtitle: const Text("Main Creator (Locked)"),
+                        leading: const Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                        title: Text(
+                          userSnap.data!.get('email'),
+                          style: const TextStyle(fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: const Text(
+                          "Main Creator",
+                          style: TextStyle(fontSize: 11),
+                        ),
                       );
                     },
                   ),
                   const Divider(),
-                  Expanded(
+                  Flexible(
                     child: ListView.builder(
+                      shrinkWrap: true,
                       itemCount: collaborators.length,
                       itemBuilder: (context, index) {
                         String email = collaborators[index];
-                        bool isMe = email == myEmail;
-
                         return ListTile(
-                          title: Text(email),
+                          title: Text(
+                            email,
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           trailing:
-                              (isOwner || isMe)
+                              (isOwner || email == myEmail)
                                   ? IconButton(
                                     icon: const Icon(
                                       Icons.remove_circle,
                                       color: Colors.red,
+                                      size: 18,
                                     ),
                                     onPressed: () async {
                                       await DatabaseService()
@@ -513,141 +700,93 @@ class TeacherDashboard extends StatelessWidget {
                 ],
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Done"),
+              ),
+            ],
           ),
     );
   }
 
-  void _manageStudentsDialog(
-    BuildContext context,
-    String quizId,
-    List<dynamic> currentStudents,
-  ) {
+  void _showAssignDialog(BuildContext context, String quizId) {
+    final controller = TextEditingController();
     showDialog(
       context: context,
       builder:
-          (context) => StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: const Text("Manage Students"),
-                content: SizedBox(
-                  width: double.maxFinite,
-                  height: 300,
-                  child: Column(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => _showAssignDialog(context, quizId),
-                        icon: const Icon(Icons.add),
-                        label: const Text("Add New Student"),
-                      ),
-                      const Divider(),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: currentStudents.length,
-                          itemBuilder: (context, index) {
-                            String email = currentStudents[index];
-                            return ListTile(
-                              title: Text(
-                                email,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      size: 20,
-                                      color: Colors.orange,
-                                    ),
-                                    onPressed:
-                                        () => _editStudentDialog(
-                                          context,
-                                          quizId,
-                                          email,
-                                        ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.remove_circle,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder:
-                                            (context) => AlertDialog(
-                                              title: const Text(
-                                                "Remove Student",
-                                              ),
-                                              content: Text(
-                                                "Are you sure you want to remove\n$email from this quiz?",
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                      ),
-                                                  child: const Text("Cancel"),
-                                                ),
-                                                ElevatedButton(
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                  onPressed: () async {
-                                                    await DatabaseService()
-                                                        .removeStudentFromQuiz(
-                                                          quizId,
-                                                          email,
-                                                        );
-
-                                                    if (context.mounted) {
-                                                      Navigator.pop(
-                                                        context,
-                                                      ); // close dialog
-                                                      Navigator.pop(
-                                                        context,
-                                                      ); // close manage students dialog
-                                                    }
-
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          "Student removed successfully",
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.green,
-                                                      ),
-                                                    );
-                                                  },
-                                                  child: const Text("Remove"),
-                                                ),
-                                              ],
-                                            ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text("Assign Students"),
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: "Emails (comma separated)",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Done"),
-                  ),
-                ],
-              );
-            },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  List<String> emails =
+                      controller.text
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                  await DatabaseService().assignStudents(quizId, emails);
+                  if (context.mounted) Navigator.pop(context);
+                },
+                child: const Text("Assign"),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showCollaboratorDialog(BuildContext context, String quizId) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text("Invite Teacher"),
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: "Teacher Email",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await DatabaseService().addCollaborator(
+                    quizId,
+                    controller.text,
+                  );
+                  if (context.mounted) Navigator.pop(context);
+                },
+                child: const Text("Add"),
+              ),
+            ],
           ),
     );
   }
@@ -662,8 +801,18 @@ class TeacherDashboard extends StatelessWidget {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Edit Student Email"),
-            content: TextField(controller: editController),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text("Edit Student"),
+            content: TextField(
+              controller: editController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -671,29 +820,83 @@ class TeacherDashboard extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  try {
-                    await DatabaseService().updateStudentEmail(
-                      quizId,
-                      oldEmail,
-                      editController.text.trim(),
-                    );
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    }
-                  } catch (e) {
-                    // Show error if email is a duplicate
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(e.toString()),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
+                  await DatabaseService().updateStudentEmail(
+                    quizId,
+                    oldEmail,
+                    editController.text.trim(),
+                  );
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text("Save"),
               ),
             ],
+          ),
+    );
+  }
+
+  void _showProfileMenu(BuildContext context, String name) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: qWhite,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: qBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Teacher Account",
+                  style: qSubTitleStyle.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const Divider(height: 30),
+                ListTile(
+                  leading: const Icon(
+                    Icons.person_outline_rounded,
+                    color: qPrimary,
+                  ),
+                  title: Text(
+                    "${name[0].toUpperCase()}${name.substring(1)}'s Profile",
+                  ),
+                  onTap: () => Navigator.pop(context),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.logout_rounded,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    "Logout Session",
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () async {
+                    await FirebaseAuth.instance.signOut();
+                    if (context.mounted)
+                      Navigator.pushReplacementNamed(context, '/login');
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
     );
   }
