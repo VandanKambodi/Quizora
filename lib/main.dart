@@ -4,15 +4,28 @@ import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/registration_screen.dart';
-import 'screens/teacher/dashboard.dart';
-import 'screens/student_dashboard.dart';
 import 'screens/student_main_wrapper.dart';
 import 'screens/teacher/teacher_main_wrapper.dart';
 import 'constants.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'services/notification_service.dart';
+
+Future<void> requestNotificationPermission() async {
+  PermissionStatus status = await Permission.notification.request();
+  if (status.isGranted) {
+    print("Notification permission granted");
+  } else {
+    print("Notification permission denied");
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService.init();
+  await requestNotificationPermission();
+
   runApp(const QuizoraApp());
 }
 
@@ -38,24 +51,9 @@ class QuizoraApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
-        // '/teacher_dashboard': (context) => const TeacherDashboard(),
         '/teacher_dashboard': (context) => const TeacherMainWrapper(),
-        // '/student_dashboard': (context) => const StudentDashboard(),
         '/student_dashboard': (context) => const StudentMainWrapper(),
       },
-    );
-  }
-}
-
-class DashboardPlaceholder extends StatelessWidget {
-  final String title;
-  const DashboardPlaceholder({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text("Welcome to $title", style: qSubTitleStyle)),
     );
   }
 }

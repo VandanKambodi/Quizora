@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:excel/excel.dart';
+import '../services/notification_service.dart';
 import 'package:file_picker/file_picker.dart';
 
 class DatabaseService {
@@ -74,18 +75,15 @@ class DatabaseService {
     for (String email in emails) {
       String cleanEmail = email.trim().toLowerCase();
 
-      QuerySnapshot userCheck =
-          await _db
-              .collection('users')
-              .where('email', isEqualTo: cleanEmail)
-              .get();
+      QuerySnapshot userCheck = await _db
+          .collection('users')
+          .where('email', isEqualTo: cleanEmail)
+          .get();
 
       if (userCheck.docs.isNotEmpty) {
         String role = userCheck.docs.first['role'];
         if (role == 'Teacher') {
-          throw Exception(
-            "Email $cleanEmail belongs to a Teacher and cannot be assigned.",
-          );
+          throw Exception("Email $cleanEmail belongs to a Teacher.");
         }
       }
     }
@@ -95,6 +93,12 @@ class DatabaseService {
         emails.map((e) => e.trim()).toList(),
       ),
     });
+
+    // Triggered within the app on successful assignment
+    await NotificationService.showNotification(
+      title: "Students Assigned!",
+      body: "${emails.length} students have been added to the quiz session.",
+    );
   }
 
   Future<void> deleteQuiz(String quizId) async {

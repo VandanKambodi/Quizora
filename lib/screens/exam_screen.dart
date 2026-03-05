@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/notification_service.dart';
 import '../constants.dart';
 import 'result_screen.dart';
 
@@ -60,20 +61,15 @@ class _ExamScreenState extends State<ExamScreen> {
     setState(() => _isSubmitting = true);
     _timer?.cancel();
 
-    // DECLARE VARIABLES FIRST TO FIX YOUR ERRORS
     int score = 0;
     List<Map<String, dynamic>> reviewData = [];
-
-    // CALCULATE TIME USED
-    int totalTimeAllowed = widget.quizData['timer'] * 60; // Minutes to seconds
+    int totalTimeAllowed = widget.quizData['timer'] * 60;
     int timeUsedSeconds = totalTimeAllowed - _timeLeft;
 
-    // GENERATE REVIEW AND SCORE
     for (int i = 0; i < _questions.length; i++) {
       String selected = _selectedAnswers[i] ?? "No Answer";
       String correct = _questions[i]['answer'];
       bool isCorrect = selected == correct;
-
       if (isCorrect) score++;
 
       reviewData.add({
@@ -84,17 +80,34 @@ class _ExamScreenState extends State<ExamScreen> {
       });
     }
 
-    // SAVE TO FIRESTORE
     await FirebaseFirestore.instance.collection('results').add({
       'quizId': widget.quizId,
       'quizTitle': widget.quizData['title'],
       'studentEmail': FirebaseAuth.instance.currentUser?.email,
       'score': score,
       'total': _questions.length,
-      'timeUsedSeconds': timeUsedSeconds, // Required for Leaderboard
-      'review': reviewData, // Now 'reviewData' is defined!
+      'timeUsedSeconds': timeUsedSeconds,
+      'review': reviewData,
       'submittedAt': FieldValue.serverTimestamp(),
     });
+
+    final resultsSnap =
+        await FirebaseFirestore.instance
+            .collection('results')
+            .where('quizId', isEqualTo: widget.quizId)
+            .get();
+
+    List assignedList = widget.quizData['assignedStudents'] ?? [];
+    int completedCount = resultsSnap.docs.length;
+
+    // Notify when all students are done
+    if (completedCount >= assignedList.length && assignedList.isNotEmpty) {
+      await NotificationService.showNotification(
+        title: "Quiz Session Completed!",
+        body:
+            "All assigned students have finished '${widget.quizData['title']}'.",
+      );
+    }
 
     if (mounted) {
       Navigator.pushReplacement(

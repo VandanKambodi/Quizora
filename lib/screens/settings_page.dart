@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
+import '../services/notification_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -18,7 +19,6 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: qBg,
       body: CustomScrollView(
         slivers: [
-          // Using a SliverAppBar for that high-end "Apple Settings" feel
           SliverAppBar(
             expandedHeight: 120.0,
             floating: false,
@@ -48,7 +48,16 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: "New Quiz Alerts",
                     subtitle: "Instantly know when a quiz is live",
                     value: _notifEnabled,
-                    onChanged: (val) => setState(() => _notifEnabled = val),
+                    onChanged: (val) async {
+                      setState(() => _notifEnabled = val);
+                      if (val) {
+                        // Trigger a test notification when enabled
+                        await NotificationService.showNotification(
+                          title: "Notifications Enabled",
+                          body: "You will now receive alerts for new quizzes!",
+                        );
+                      }
+                    },
                   ),
                 ]),
 
