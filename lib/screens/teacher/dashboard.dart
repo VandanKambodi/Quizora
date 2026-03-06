@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
 import '../../constants.dart';
 import 'add_quiz.dart';
+import 'dart:convert';
 import 'quiz_leaderboard.dart';
 import 'quiz_analytics_screen.dart';
 
@@ -89,17 +90,48 @@ class TeacherDashboard extends StatelessWidget {
                               width: 2,
                             ),
                           ),
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor: qWhite,
-                            child: Text(
-                              name[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: qPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
+                          child: StreamBuilder<DocumentSnapshot>(
+                            stream:
+                                FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                                    .snapshots(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData || !snapshot.data!.exists) {
+                                return const CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: qWhite,
+                                  child: Icon(Icons.person, color: qPrimary),
+                                );
+                              }
+                              var userData =
+                                  snapshot.data!.data() as Map<String, dynamic>;
+                              String? base64String =
+                                  userData.containsKey('profileItem')
+                                      ? userData['profileItem']
+                                      : null;
+
+                              return CircleAvatar(
+                                radius: 22,
+                                backgroundColor: qWhite,
+                                backgroundImage:
+                                    base64String != null
+                                        ? MemoryImage(
+                                          base64Decode(base64String),
+                                        )
+                                        : null,
+                                child:
+                                    base64String == null
+                                        ? Text(
+                                          name[0].toUpperCase(),
+                                          style: const TextStyle(
+                                            color: qPrimary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                        : null,
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -402,7 +434,6 @@ class TeacherDashboard extends StatelessWidget {
       ),
     );
   }
-
 
   void _handleDeleteOrLeave(
     BuildContext context,

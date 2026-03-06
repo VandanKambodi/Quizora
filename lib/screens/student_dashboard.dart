@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../constants.dart';
+import '../services/profile_service.dart';
 import 'exam_screen.dart';
 import 'result_screen.dart';
 
@@ -120,6 +121,7 @@ class StudentDashboard extends StatelessWidget {
   }
 
   Widget _buildHeader(String name) {
+    final user = FirebaseAuth.instance.currentUser;
     return Container(
       padding: const EdgeInsets.fromLTRB(25, 60, 25, 30),
       decoration: const BoxDecoration(
@@ -154,10 +156,43 @@ class StudentDashboard extends StatelessWidget {
                   ),
                 ],
               ),
-              const CircleAvatar(
-                radius: 25,
-                backgroundColor: qWhite,
-                child: Icon(Icons.person_rounded, color: qPrimary, size: 30),
+              StreamBuilder<DocumentSnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user?.uid)
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || !snapshot.data!.exists) {
+                    return const CircleAvatar(
+                      radius: 25,
+                      backgroundColor: qWhite,
+                      child: Icon(Icons.person, color: qPrimary),
+                    );
+                  }
+                  var userData = snapshot.data!.data() as Map<String, dynamic>;
+                  String? base64String =
+                      userData.containsKey('profileItem')
+                          ? userData['profileItem']
+                          : null;
+
+                  return CircleAvatar(
+                    radius: 25,
+                    backgroundColor: qWhite,
+                    backgroundImage:
+                        base64String != null
+                            ? MemoryImage(base64Decode(base64String))
+                            : null,
+                    child:
+                        base64String == null
+                            ? const Icon(
+                              Icons.person_rounded,
+                              color: qPrimary,
+                              size: 30,
+                            )
+                            : null,
+                  );
+                },
               ),
             ],
           ),
@@ -179,6 +214,20 @@ class StudentDashboard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderAvatar() {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: qWhite, width: 5),
+      ),
+      child: const CircleAvatar(
+        radius: 55,
+        backgroundColor: qBg,
+        child: Icon(Icons.person_rounded, size: 60, color: qPrimary),
       ),
     );
   }
