@@ -58,19 +58,19 @@ class TeacherDashboard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Teacher Panel",
+                              "Manage Your Quizzes",
                               style: qSubTitleStyle.copyWith(
                                 color: qWhite.withOpacity(0.8),
                                 fontSize: 14,
                               ),
                             ),
                             Text(
-                              "Hello, ${name[0].toUpperCase()}${name.substring(1)}",
+                              "${name[0].toUpperCase()}${name.substring(1)}",
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                               style: qTitleStyle.copyWith(
                                 color: qWhite,
-                                fontSize: 26,
+                                fontSize: 22,
                               ),
                             ),
                           ],
