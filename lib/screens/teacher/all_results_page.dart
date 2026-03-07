@@ -4,8 +4,22 @@ import '../../services/database_service.dart';
 import '../../constants.dart';
 import 'quiz_analytics_screen.dart';
 
-class AllResultsPage extends StatelessWidget {
+class AllResultsPage extends StatefulWidget {
   const AllResultsPage({super.key});
+
+  @override
+  State<AllResultsPage> createState() => _AllResultsPageState();
+}
+
+class _AllResultsPageState extends State<AllResultsPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,18 +27,23 @@ class AllResultsPage extends StatelessWidget {
       backgroundColor: qBg,
       body: CustomScrollView(
         slivers: [
-          // SLIVER HEADER
           SliverAppBar(
-            expandedHeight: 140,
+            expandedHeight: 160,
             floating: false,
             pinned: true,
             elevation: 0,
             backgroundColor: qPrimary,
+            centerTitle: true,
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
+              titlePadding: const EdgeInsets.only(bottom: 85),
               title: Text(
                 "Quiz Analytics",
-                style: qTitleStyle.copyWith(color: qWhite, fontSize: 18),
+                style: qTitleStyle.copyWith(
+                  color: qWhite,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               background: Container(
                 decoration: const BoxDecoration(
@@ -32,6 +51,57 @@ class AllResultsPage extends StatelessWidget {
                     colors: [qPrimary, qPrimaryDark],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 15),
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: qWhite,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: qBlack.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: "Search quiz title...",
+                      hintStyle: const TextStyle(color: qGrey, fontSize: 14),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: qPrimary,
+                      ),
+                      suffixIcon:
+                          _searchQuery.isNotEmpty
+                              ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                  color: qGrey,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = "");
+                                },
+                              )
+                              : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
                   ),
                 ),
               ),
@@ -49,22 +119,30 @@ class AllResultsPage extends StatelessWidget {
                 );
               }
 
-              final quizzes = snapshot.data?.docs ?? [];
+              final allQuizzes = snapshot.data?.docs ?? [];
+              final filteredQuizzes =
+                  allQuizzes.where((doc) {
+                    String title =
+                        (doc.data() as Map<String, dynamic>)['title'] ?? "";
+                    return title.toLowerCase().contains(_searchQuery);
+                  }).toList();
 
-              if (quizzes.isEmpty) {
+              if (filteredQuizzes.isEmpty) {
                 return SliverFillRemaining(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.analytics_outlined,
+                          Icons.search_off_rounded,
                           size: 80,
                           color: qGrey.withOpacity(0.3),
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "No quizzes found to analyze",
+                          _searchQuery.isEmpty
+                              ? "No quizzes found"
+                              : "No results for '$_searchQuery'",
                           style: qSubTitleStyle,
                         ),
                       ],
@@ -78,15 +156,15 @@ class AllResultsPage extends StatelessWidget {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     var quizData =
-                        quizzes[index].data() as Map<String, dynamic>;
-                    String quizId = quizzes[index].id;
+                        filteredQuizzes[index].data() as Map<String, dynamic>;
+                    String quizId = filteredQuizzes[index].id;
                     return _buildAnalyticalQuizCard(
                       context,
                       quizId,
                       quizData,
                       index,
                     );
-                  }, childCount: quizzes.length),
+                  }, childCount: filteredQuizzes.length),
                 ),
               );
             },
@@ -155,7 +233,6 @@ class AllResultsPage extends StatelessWidget {
                       child: const Icon(
                         Icons.assessment_rounded,
                         color: qPrimary,
-                        size: 24,
                       ),
                     ),
                     const SizedBox(width: 15),
@@ -168,7 +245,6 @@ class AllResultsPage extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
-                              color: qTextPrimary,
                             ),
                           ),
                           Text(
@@ -185,19 +261,16 @@ class AllResultsPage extends StatelessWidget {
                   padding: EdgeInsets.symmetric(vertical: 15),
                   child: Divider(height: 1),
                 ),
-
                 StreamBuilder<QuerySnapshot>(
                   stream: DatabaseService().getQuizSummary(quizId),
                   builder: (context, summarySnap) {
-                    if (!summarySnap.hasData) {
-                      return const Center(child: LinearProgressIndicator());
-                    }
+                    if (!summarySnap.hasData)
+                      return const LinearProgressIndicator();
                     var results = summarySnap.data!.docs;
-                    int assignedCount =
+                    int assigned =
                         (quizData['assignedStudents'] as List).length;
-                    int completedCount = results.length;
-
-                    int highScore =
+                    int completed = results.length;
+                    int top =
                         results.isEmpty
                             ? 0
                             : results
@@ -210,21 +283,19 @@ class AllResultsPage extends StatelessWidget {
                         _miniStat(
                           Icons.people_alt_rounded,
                           "Participation",
-                          "$completedCount/$assignedCount",
+                          "$completed/$assigned",
                         ),
                         _miniStat(
                           Icons.emoji_events_rounded,
                           "Top Score",
-                          "$highScore",
+                          "$top",
                         ),
                         _miniStat(
                           Icons.trending_up_rounded,
                           "Status",
-                          completedCount == assignedCount
-                              ? "Finished"
-                              : "Active",
+                          completed == assigned ? "Finished" : "Active",
                           isStatus: true,
-                          isComplete: completedCount == assignedCount,
+                          isComplete: completed == assigned,
                         ),
                       ],
                     );
@@ -267,14 +338,7 @@ class AllResultsPage extends StatelessWidget {
                     : qTextPrimary,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: qGrey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 10, color: qGrey)),
       ],
     );
   }

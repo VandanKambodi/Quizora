@@ -5,8 +5,22 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import 'result_screen.dart';
 
-class HistoryPage extends StatelessWidget {
+class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
+
+  @override
+  State<HistoryPage> createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,20 +30,84 @@ class HistoryPage extends StatelessWidget {
       backgroundColor: qBg,
       body: CustomScrollView(
         slivers: [
-          // Premium Glassmorphic Header
           SliverAppBar(
-            expandedHeight: 120,
-            floating: true,
+            expandedHeight: 160,
+            floating: false,
             pinned: true,
             elevation: 0,
             backgroundColor: qPrimary,
+            centerTitle: true,
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
+              titlePadding: const EdgeInsets.only(bottom: 85),
               title: Text(
                 "Performance History",
-                style: qTitleStyle.copyWith(color: qWhite, fontSize: 18),
+                style: qTitleStyle.copyWith(
+                  color: qWhite,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              background: Container(color: qPrimary),
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [qPrimary, qPrimaryDark],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 15),
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: qWhite,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: qBlack.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: "Search quiz title...",
+                      hintStyle: const TextStyle(color: qGrey, fontSize: 14),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: qPrimary,
+                      ),
+                      suffixIcon:
+                          _searchQuery.isNotEmpty
+                              ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                  color: qGrey,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = "");
+                                },
+                              )
+                              : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
 
@@ -44,19 +122,31 @@ class HistoryPage extends StatelessWidget {
               if (snapshot.hasError) return _buildErrorState();
               if (!snapshot.hasData) return _buildLoadingState();
 
-              final results = snapshot.data!.docs;
-              if (results.isEmpty) return _buildEmptyState();
+              final allResults = snapshot.data!.docs;
+              final filteredResults =
+                  allResults.where((doc) {
+                    String title =
+                        (doc.data() as Map<String, dynamic>)['quizTitle'] ??
+                        "Quiz Result";
+                    return title.toLowerCase().contains(_searchQuery);
+                  }).toList();
+
+              if (filteredResults.isEmpty) {
+                return _buildEmptyState(
+                  _searchQuery.isEmpty
+                      ? "No records found"
+                      : "No results for '$_searchQuery'",
+                );
+              }
 
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.all(20),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    var data = results[index].data() as Map<String, dynamic>;
+                    var data =
+                        filteredResults[index].data() as Map<String, dynamic>;
                     return _buildHistoryCard(context, data, index);
-                  }, childCount: results.length),
+                  }, childCount: filteredResults.length),
                 ),
               );
             },
@@ -81,7 +171,6 @@ class HistoryPage extends StatelessWidget {
       dateStr = DateFormat('MMM d, yyyy').format(dt);
     }
 
-    // Dynamic color based on performance
     Color statusColor =
         percent >= 80
             ? Colors.greenAccent.shade700
@@ -189,7 +278,6 @@ class HistoryPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Performance mini-bar at the bottom of the card
                 LinearProgressIndicator(
                   value: percent / 100,
                   backgroundColor: qBg,
@@ -221,8 +309,7 @@ class HistoryPage extends StatelessWidget {
     );
   }
 
-  // State Builders
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(String message) {
     return SliverFillRemaining(
       child: Center(
         child: Column(
@@ -234,22 +321,17 @@ class HistoryPage extends StatelessWidget {
               color: qGrey.withOpacity(0.2),
             ),
             const SizedBox(height: 16),
-            Text("No records found", style: qSubTitleStyle),
+            Text(message, style: qSubTitleStyle),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildErrorState() {
-    return const SliverFillRemaining(
-      child: Center(child: Text("Error fetching history")),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return const SliverFillRemaining(
-      child: Center(child: CircularProgressIndicator(color: qPrimary)),
-    );
-  }
+  Widget _buildErrorState() => const SliverFillRemaining(
+    child: Center(child: Text("Error fetching history")),
+  );
+  Widget _buildLoadingState() => const SliverFillRemaining(
+    child: Center(child: CircularProgressIndicator(color: qPrimary)),
+  );
 }

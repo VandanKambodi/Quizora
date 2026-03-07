@@ -5,7 +5,7 @@ import '../../constants.dart';
 import '../result_screen.dart';
 import 'quiz_leaderboard.dart';
 
-class QuizAnalyticsScreen extends StatelessWidget {
+class QuizAnalyticsScreen extends StatefulWidget {
   final String quizId;
   final Map<String, dynamic> quizData;
 
@@ -16,102 +16,268 @@ class QuizAnalyticsScreen extends StatelessWidget {
   });
 
   @override
+  State<QuizAnalyticsScreen> createState() => _QuizAnalyticsScreenState();
+}
+
+class _QuizAnalyticsScreenState extends State<QuizAnalyticsScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    List assignedEmails = quizData['assignedStudents'] ?? [];
+    List assignedEmails = widget.quizData['assignedStudents'] ?? [];
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: qBg,
-        appBar: AppBar(
-          backgroundColor: qPrimary,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: qWhite, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            quizData['title'],
-            style: const TextStyle(
-              color: qWhite,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(
-                Icons.leaderboard_rounded,
-                color: Colors.amberAccent,
-                size: 28,
-              ),
-              onPressed:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => QuizLeaderboard(
-                            quizId: quizId,
-                            quizTitle: quizData['title'],
-                          ),
-                    ),
-                  ),
-            ),
-            const SizedBox(width: 8),
-          ],
+    return Scaffold(
+      backgroundColor: qBg,
+      appBar: AppBar(
+        backgroundColor: qPrimary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: qWhite, size: 20),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('results')
-                  .where('quizId', isEqualTo: quizId)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData)
-              return const Center(
-                child: CircularProgressIndicator(color: qPrimary),
-              );
+        title: Text(
+          widget.quizData['title'],
+          style: const TextStyle(
+            color: qWhite,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.leaderboard_rounded,
+              color: Colors.amberAccent,
+              size: 28,
+            ),
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => QuizLeaderboard(
+                          quizId: widget.quizId,
+                          quizTitle: widget.quizData['title'],
+                        ),
+                  ),
+                ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream:
+            FirebaseFirestore.instance
+                .collection('results')
+                .where('quizId', isEqualTo: widget.quizId)
+                .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData)
+            return const Center(
+              child: CircularProgressIndicator(color: qPrimary),
+            );
 
-            var finishedDocs = snapshot.data!.docs;
-            var finishedEmails =
-                finishedDocs.map((doc) => doc['studentEmail']).toList();
-            int total = assignedEmails.length;
-            int done = finishedDocs.length;
-            int pending = total - done;
-            double completionRate = total > 0 ? (done / total) : 0;
+          var finishedDocs = snapshot.data!.docs;
+          var finishedEmails =
+              finishedDocs.map((doc) => doc['studentEmail']).toList();
+          int total = assignedEmails.length;
+          int done = finishedDocs.length;
+          int pendingCount = total - done;
+          double completionRate = total > 0 ? (done / total) : 0;
 
-            return Column(
-              children: [
-                _buildHeaderStats(total, done, completionRate),
-                const TabBar(
-                  labelColor: qPrimary,
-                  unselectedLabelColor: qGrey,
-                  indicatorColor: qPrimary,
-                  labelStyle: TextStyle(fontWeight: FontWeight.bold),
-                  tabs: [
-                    Tab(text: "Finished"),
-                    Tab(text: "Pending"),
-                    Tab(text: "Stats"),
+          return Column(
+            children: [
+              _buildHeaderStats(total, done, completionRate),
+
+              TabBar(
+                controller: _tabController,
+                labelColor: qPrimary,
+                unselectedLabelColor: qGrey,
+                indicatorColor: qPrimary,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                tabs: const [
+                  Tab(text: "Finished"),
+                  Tab(text: "Pending"),
+                  Tab(text: "Stats"),
+                ],
+              ),
+
+              if (_tabController.index != 2) _buildSearchBar(),
+
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildDoneList(finishedDocs),
+                    _buildPendingList(assignedEmails, finishedEmails),
+                    _buildStatisticsTab(done, pendingCount, finishedDocs),
                   ],
                 ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildDoneList(finishedDocs),
-                      _buildPendingList(assignedEmails, finishedEmails),
-                      _buildStatisticsTab(
-                        done,
-                        pending,
-                        finishedDocs,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 5),
+      child: Container(
+        height: 45,
+        decoration: BoxDecoration(
+          color: qWhite,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: qBlack.withOpacity(0.03), blurRadius: 10),
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged:
+              (value) => setState(() => _searchQuery = value.toLowerCase()),
+          decoration: InputDecoration(
+            hintText: "Search student email...",
+            hintStyle: const TextStyle(color: qGrey, fontSize: 15),
+            prefixIcon: const Icon(Icons.search, color: qPrimary, size: 25),
+            suffixIcon:
+                _searchQuery.isNotEmpty
+                    ? IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = "");
+                      },
+                    )
+                    : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDoneList(List<QueryDocumentSnapshot> docs) {
+    final filteredDocs =
+        docs.where((doc) {
+          String email =
+              (doc.data() as Map<String, dynamic>)['studentEmail'] ?? "";
+          return email.toLowerCase().contains(_searchQuery);
+        }).toList();
+
+    if (filteredDocs.isEmpty)
+      return _buildEmptyState("No matching students found", Icons.search_off);
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: filteredDocs.length,
+      itemBuilder: (context, index) {
+        var data = filteredDocs[index].data() as Map<String, dynamic>;
+        double scorePercent = (data['score'] / data['total']) * 100;
+        return _buildListContainer(
+          child: ListTile(
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ResultScreen(
+                          score: data['score'] ?? 0,
+                          total: data['total'] ?? 0,
+                          reviewData: data['review'] ?? [],
+                        ),
+                  ),
+                ),
+            leading: CircleAvatar(
+              backgroundColor: qPrimary.withOpacity(0.1),
+              child: Text(
+                "${index + 1}",
+                style: const TextStyle(
+                  color: qPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Text(
+              data['studentEmail'],
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            subtitle: Text(
+              "Score: ${data['score']} / ${data['total']}",
+              style: const TextStyle(fontSize: 12),
+            ),
+            trailing: _buildScoreBadge(scorePercent),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPendingList(List assigned, List finished) {
+    var pending =
+        assigned.where((email) {
+          bool isPending = !finished.contains(email);
+          bool matchesSearch = email.toString().toLowerCase().contains(
+            _searchQuery,
+          );
+          return isPending && matchesSearch;
+        }).toList();
+
+    if (pending.isEmpty)
+      return _buildEmptyState(
+        "No pending students found",
+        Icons.person_search_outlined,
+      );
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: pending.length,
+      itemBuilder:
+          (context, index) => _buildListContainer(
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Colors.grey.shade100,
+                child: const Icon(Icons.person_outline, color: Colors.grey),
+              ),
+              title: Text(
+                pending[index],
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+              subtitle: const Text(
+                "Attempt Pending",
+                style: TextStyle(fontSize: 11, color: Colors.orange),
+              ),
+              trailing: const Icon(
+                Icons.mail_outline_rounded,
+                size: 20,
+                color: qGrey,
+              ),
+            ),
+          ),
     );
   }
 
@@ -173,12 +339,8 @@ class QuizAnalyticsScreen extends StatelessWidget {
     );
   }
 
-  // --- STEP D2: PREPARE DATASET FROM FIRESTORE ---
   Widget _buildScoreBarChart(List<QueryDocumentSnapshot> docs) {
-    int low = 0;
-    int mid = 0;
-    int high = 0;
-
+    int low = 0, mid = 0, high = 0;
     for (var doc in docs) {
       double p = (doc['score'] / doc['total']) * 100;
       if (p < 50)
@@ -188,7 +350,6 @@ class QuizAnalyticsScreen extends StatelessWidget {
       else
         high++;
     }
-
     return SizedBox(
       height: 250,
       child: BarChart(
@@ -201,36 +362,9 @@ class QuizAnalyticsScreen extends StatelessWidget {
                   .toDouble() +
               1,
           barGroups: [
-            BarChartGroupData(
-              x: 0,
-              barRods: [
-                BarChartRodData(
-                  toY: low.toDouble(),
-                  color: Colors.redAccent,
-                  width: 20,
-                ),
-              ],
-            ),
-            BarChartGroupData(
-              x: 1,
-              barRods: [
-                BarChartRodData(
-                  toY: mid.toDouble(),
-                  color: Colors.orangeAccent,
-                  width: 20,
-                ),
-              ],
-            ),
-            BarChartGroupData(
-              x: 2,
-              barRods: [
-                BarChartRodData(
-                  toY: high.toDouble(),
-                  color: Colors.greenAccent,
-                  width: 20,
-                ),
-              ],
-            ),
+            _barGroup(0, low.toDouble(), Colors.redAccent),
+            _barGroup(1, mid.toDouble(), Colors.orangeAccent),
+            _barGroup(2, high.toDouble(), Colors.greenAccent),
           ],
           titlesData: FlTitlesData(
             show: true,
@@ -252,6 +386,13 @@ class QuizAnalyticsScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  BarChartGroupData _barGroup(int x, double y, Color color) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [BarChartRodData(toY: y, color: color, width: 20)],
     );
   }
 
@@ -312,92 +453,6 @@ class QuizAnalyticsScreen extends StatelessWidget {
           style: TextStyle(color: qWhite.withOpacity(0.7), fontSize: 11),
         ),
       ],
-    );
-  }
-
-  Widget _buildDoneList(List<QueryDocumentSnapshot> docs) {
-    if (docs.isEmpty)
-      return _buildEmptyState("No students finished yet", Icons.history_edu);
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: docs.length,
-      itemBuilder: (context, index) {
-        var data = docs[index].data() as Map<String, dynamic>;
-        double scorePercent = (data['score'] / data['total']) * 100;
-        return _buildListContainer(
-          child: ListTile(
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) => ResultScreen(
-                          score: data['score'] ?? 0,
-                          total: data['total'] ?? 0,
-                          reviewData: data['review'] ?? [],
-                        ),
-                  ),
-                ),
-            leading: CircleAvatar(
-              backgroundColor: qPrimary.withOpacity(0.1),
-              child: Text(
-                "${index + 1}",
-                style: const TextStyle(
-                  color: qPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            title: Text(
-              data['studentEmail'],
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            subtitle: Text(
-              "Score: ${data['score']} / ${data['total']}",
-              style: const TextStyle(fontSize: 12),
-            ),
-            trailing: _buildScoreBadge(scorePercent),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPendingList(List assigned, List finished) {
-    var pending = assigned.where((email) => !finished.contains(email)).toList();
-    if (pending.isEmpty)
-      return _buildEmptyState(
-        "Everyone has finished!",
-        Icons.celebration_rounded,
-      );
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: pending.length,
-      itemBuilder:
-          (context, index) => _buildListContainer(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.grey.shade100,
-                child: const Icon(Icons.person_outline, color: Colors.grey),
-              ),
-              title: Text(
-                pending[index],
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-              subtitle: const Text(
-                "Attempt Pending",
-                style: TextStyle(fontSize: 11, color: Colors.orange),
-              ),
-              trailing: const Icon(
-                Icons.mail_outline_rounded,
-                size: 20,
-                color: qGrey,
-              ),
-            ),
-          ),
     );
   }
 

@@ -176,21 +176,35 @@ class StudentDashboard extends StatelessWidget {
                           ? userData['profileItem']
                           : null;
 
-                  return CircleAvatar(
-                    radius: 25,
-                    backgroundColor: qWhite,
-                    backgroundImage:
-                        base64String != null
-                            ? MemoryImage(base64Decode(base64String))
-                            : null,
-                    child:
-                        base64String == null
-                            ? const Icon(
-                              Icons.person_rounded,
-                              color: qPrimary,
-                              size: 30,
-                            )
-                            : null,
+                  return Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: qWhite.withOpacity(0.5),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: qBlack.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: qWhite,
+                      child: ClipOval(
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Image.asset(
+                            'assets/images/quizora-wbg.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),

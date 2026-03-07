@@ -78,60 +78,33 @@ class TeacherDashboard extends StatelessWidget {
                       ),
                       const SizedBox(width: 15),
 
-                      // --- UNIQUE: Glassmorphic Profile Trigger ---
-                      GestureDetector(
-                        onTap: () => _showProfileMenu(context, name),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: qWhite.withOpacity(0.3),
-                              width: 2,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: qWhite.withOpacity(0.5),
+                            width: 2,
                           ),
-                          child: StreamBuilder<DocumentSnapshot>(
-                            stream:
-                                FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(FirebaseAuth.instance.currentUser?.uid)
-                                    .snapshots(),
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData || !snapshot.data!.exists) {
-                                return const CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: qWhite,
-                                  child: Icon(Icons.person, color: qPrimary),
-                                );
-                              }
-                              var userData =
-                                  snapshot.data!.data() as Map<String, dynamic>;
-                              String? base64String =
-                                  userData.containsKey('profileItem')
-                                      ? userData['profileItem']
-                                      : null;
-
-                              return CircleAvatar(
-                                radius: 22,
-                                backgroundColor: qWhite,
-                                backgroundImage:
-                                    base64String != null
-                                        ? MemoryImage(
-                                          base64Decode(base64String),
-                                        )
-                                        : null,
-                                child:
-                                    base64String == null
-                                        ? Text(
-                                          name[0].toUpperCase(),
-                                          style: const TextStyle(
-                                            color: qPrimary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                        : null,
-                              );
-                            },
+                          boxShadow: [
+                            BoxShadow(
+                              color: qBlack.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: qWhite,
+                          child: ClipOval(
+                            child: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Image.asset(
+                                'assets/images/quizora-wbg.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -773,8 +746,57 @@ class TeacherDashboard extends StatelessWidget {
                           .map((e) => e.trim())
                           .where((e) => e.isNotEmpty)
                           .toList();
-                  await DatabaseService().assignStudents(quizId, emails);
-                  if (context.mounted) Navigator.pop(context);
+
+                  var quizDoc =
+                      await FirebaseFirestore.instance
+                          .collection('quizzes')
+                          .doc(quizId)
+                          .get();
+                  List existingStudents =
+                      quizDoc.data()?['assignedStudents'] ?? [];
+
+                  List<String> validStudents = [];
+                  String errorMessage = "";
+
+                  for (String email in emails) {
+                    if (existingStudents.contains(email)) {
+                      errorMessage = "Email already exists in this quiz.";
+                      continue;
+                    }
+
+                    var userSnap =
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .where('email', isEqualTo: email)
+                            .where('role', isEqualTo: 'Student')
+                            .get();
+
+                    if (userSnap.docs.isNotEmpty) {
+                      validStudents.add(email);
+                    } else {
+                      errorMessage =
+                          "This email is not registered as a Student.";
+                    }
+                  }
+
+                  if (validStudents.isNotEmpty) {
+                    await DatabaseService().assignStudents(
+                      quizId,
+                      validStudents,
+                    );
+                  }
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    if (errorMessage.isNotEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: Colors.red,
+                          content: Text(errorMessage),
+                        ),
+                      );
+                    }
+                  }
                 },
                 child: const Text("Assign"),
               ),
@@ -809,11 +831,69 @@ class TeacherDashboard extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  await DatabaseService().addCollaborator(
-                    quizId,
-                    controller.text,
-                  );
-                  if (context.mounted) Navigator.pop(context);
+                  String email = controller.text.trim();
+                  final currentUserEmail =
+                      FirebaseAuth.instance.currentUser?.email;
+
+                  if (email == currentUserEmail) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Colors.red,
+                        content: Text(
+                          "You are the owner. You don't need to add yourself to staff.",
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  var quizDoc =
+                      await FirebaseFirestore.instance
+                          .collection('quizzes')
+                          .doc(quizId)
+                          .get();
+                  List existingStaff = quizDoc.data()?['collaborators'] ?? [];
+                  String creatorId = quizDoc.data()?['createdBy'] ?? "";
+
+                  if (existingStaff.contains(email)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Colors.red,
+                        content: Text("This teacher is already in your staff."),
+                      ),
+                    );
+                    return;
+                  }
+
+                  var teacherSnap =
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .where('email', isEqualTo: email)
+                          .where('role', isEqualTo: 'Teacher')
+                          .get();
+
+                  if (teacherSnap.docs.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Colors.red,
+                        content: Text(
+                          "This email is not registered as a Teacher.",
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  await DatabaseService().addCollaborator(quizId, email);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Colors.green,
+                        content: Text("Staff member added successfully!"),
+                      ),
+                    );
+                  }
                 },
                 child: const Text("Add"),
               ),
