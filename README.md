@@ -24,7 +24,6 @@ A comprehensive Flutter-based mobile application for online quiz management and 
 - Real-time notifications and updates
 
 ### General Features
-- Offline support for quiz content
 - Cloud synchronization with Firebase
 - Push notifications for important events
 - Secure user authentication
@@ -37,7 +36,6 @@ A comprehensive Flutter-based mobile application for online quiz management and 
 - **Frontend Framework**: Flutter (Dart)
 - **Backend & Database**: Firebase (Authentication, Cloud Firestore, Storage)
 - **State Management**: Provider
-- **Local Storage**: Hive/Shared Preferences
 - **Notifications**: Firebase Cloud Messaging, Flutter Local Notifications
 - **Analytics**: Firebase Analytics
 - **Charting**: FL Chart
@@ -168,7 +166,6 @@ web/
 - Video integration in quiz questions
 - Collaborative quizzes and team competitions
 - Accessibility improvements (Dark mode, Text scaling)
-- Multi-language support
 - Social sharing of quiz results
 - AI-powered quiz suggestions
 - Integration with educational platforms
@@ -233,29 +230,3 @@ git push origin feature/amazing-feature
 5. Open a Pull Request
 
 Please ensure your code follows the Flutter style guide and include appropriate documentation.
-
-## Code Style
-
-This project follows the [Dart Code Style Guide](https://dart.dev/guides/language/effective-dart/style) and uses:
-- `dart format` for code formatting
-- `dart analyze` for static analysis
-- Meaningful variable and function names
-- Comprehensive documentation comments
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contact & Support
-
-For support, email your-email@example.com or open an issue on GitHub.
-
-## Acknowledgments
-
-- Flutter community for the excellent documentation
-- Firebase for backend services
-- All contributors and testers
-
----
-
-**Note:** This README will be updated as the project evolves. For the latest updates, please check the repository regularly.
